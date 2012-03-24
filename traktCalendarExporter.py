@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import pytz
 import subprocess
 import json
 
@@ -9,8 +8,6 @@ from icalendar import Calendar, Event
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-usTimezone = pytz.timezone('US/Central')
-usNow = usTimezone.localize(datetime.now())
 calFile = '/tmp/series.ics'
 
 TRAKT_API_KEY = ""
