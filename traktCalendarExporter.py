@@ -13,7 +13,7 @@ calFile = '/tmp/series.ics'
 TRAKT_API_KEY = ""
 TRAKT_USER = ""
 
-traktShowsUrl = "http://api.trakt.tv/user/calendar/shows.json/%s/%s" % (traktApiKey, traktUser)
+traktShowsUrl = "http://api.trakt.tv/user/calendar/shows.json/%s/%s" % (TRAKT_API_KEY, TRAKT_USER)
 
 class Data:
     def __init__(self, data):
