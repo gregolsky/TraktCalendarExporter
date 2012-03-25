@@ -1,50 +1,42 @@
 #!/usr/bin/python
-import subprocess
-import json
 
+import ConfigParser, os, json
+
+from pytz import timezone
 from uuid import uuid4
 from urllib2 import urlopen
+from urllib import quote
 from icalendar import Calendar, Event
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from cfg import createOrGetConfiguration
+from utils import Data, padWithZero
 
-calFile = '/tmp/series.ics'
+cfgFile = os.path.expanduser('~/.traktCalExporter.cfg')
+cfg = createOrGetConfiguration(cfgFile)
+traktShowsUrl = "http://api.trakt.tv/user/calendar/shows.json/%s/%s" % (cfg.TraktApiKey, cfg.TraktUser)
 
-TRAKT_API_KEY = ""
-TRAKT_USER = ""
-
-traktShowsUrl = "http://api.trakt.tv/user/calendar/shows.json/%s/%s" % (TRAKT_API_KEY, TRAKT_USER)
-
-class Data:
-    def __init__(self, data):
-        self.__dict__.update(data)
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-def padWithZero(s, length):
-    result = s    
-    while len(result) < length:
-        result = "0%s" % result
-    return result
+class EpisodeEvent(object):
+    def __init__(self, show, title, season, number, runtime, airtime):
+        self.show, self.title, self.season, self.number, self.runtime, self.airtime = show, title, season, number, runtime, airtime
 
 def loadShows():
     socket = urlopen(traktShowsUrl)
     showsCalendar = json.load(socket)
     for dateInfo in showsCalendar:
         y,m,d = [ int(x) for x in dateInfo['date'].split('-') ]
-        episodeData = {}
         for data in dateInfo["episodes"]:
             episode = Data(data["episode"])
             show = Data(data["show"])
-            episodeData["number"] = episode.number
-            episodeData['season'] = episode.season
-            episodeData['runtime'] = show.runtime
-            episodeData['title'] = episode.title
-            episodeData['show'] = show.title
+            number = padWithZero(str(episode.number), 2)
+            season = padWithZero(str(episode.season), 2)
+            runtime = show.runtime
+            title = episode.title
+            showName = show.title
             dateString = '%s %s' % (dateInfo['date'], show.air_time.upper())
-            episodeData['airTime'] =  datetime.strptime(dateString, '%Y-%m-%d %H:%M%p')
-            yield Data(episodeData)
+            airtime =  datetime.strptime(dateString, '%Y-%m-%d %I:%M%p').replace(tzinfo = timezone(cfg.ShowsTimezone)).astimezone(timezone(cfg.UserTimezone))
+
+            yield EpisodeEvent(showName, title, season, number, runtime, airtime)
 
 def createCalendar():
     cal = Calendar()
@@ -53,21 +45,21 @@ def createCalendar():
 
     for episodeEvent in loadShows():
         event = Event()
-        name, season, episodeNr, title = episodeEvent.show, episodeEvent.season, episodeEvent.number, episodeEvent.title
-        nameUrlEncoded = episodeEvent.show.replace(' ', '+')
-        summary = '%(name)s S%(season)sE%(episodeNr)s %(title)s' % locals()
-        description = ""
-        
+        show, season, number, title = episodeEvent.show, episodeEvent.season, episodeEvent.number, episodeEvent.title
+        summary = '''%(show)s S%(season)sE%(number)s "%(title)s"''' % locals()
+        query = quote(summary)
+        description = cfg.EventDescriptionFormat % locals()
+
         event.add('summary', summary)
-        event.add('dtstart', episodeEvent.airTime)
-        event.add('dtend', episodeEvent.airTime + relativedelta( minutes = episodeEvent.runtime ))
-        event.add('dtstamp', datetime.now())
+        event.add('dtstart', episodeEvent.airtime)
+        event.add('dtend', episodeEvent.airtime + relativedelta( minutes = episodeEvent.runtime ))
+        event.add('dtstamp', datetime.now().replace(tzinfo = timezone(cfg.UserTimezone)))
         event.add('description', description)
         event['uid'] = str(uuid4())
 
         cal.add_component(event)
     
-    with open(calFile, 'wb') as f:
+    with open(cfg.ExportFilePath, 'wb') as f:
         f.write(cal.to_ical())
 
 if __name__ == "__main__":
