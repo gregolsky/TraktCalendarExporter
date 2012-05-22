@@ -15,7 +15,7 @@ from utils import Data, padWithZero
 today = datetime.now().strftime("%Y%m%d")
 cfgFile = os.path.expanduser('~/.traktCalExporter.cfg')
 cfg = createOrGetConfiguration(cfgFile)
-traktShowsUrl = "http://api.trakt.tv/user/calendar/shows.json/%s/%s/%s/21" % (cfg.TraktApiKey, cfg.TraktUser, today)
+traktShowsUrl = "http://api.trakt.tv/user/calendar/shows.json/%s/%s/%s/14" % (cfg.TraktApiKey, cfg.TraktUser, today)
 
 class EpisodeEvent(object):
     def __init__(self, show, title, season, number, runtime, airtime):
